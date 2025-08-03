@@ -1,0 +1,19 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.scroll-chart {
+  flex: 1;
+  white-space: nowrap;
+  overflow-x: scroll;
+  background: #ffffff;
+}
+
+.toolbar {
+  padding: 20rpx;
+  display: flex;
+  justify-content: center;
+  background: #f2f2f2;
+}

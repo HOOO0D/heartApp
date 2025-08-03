@@ -1,0 +1,42 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/data/data",
+    "pages/about/about"
+  ],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "健康心率",
+    "navigationBarBackgroundColor": "#ffffff"
+  },
+  "style": "v2",
+  "componentFramework": "glass-easel",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents",
+  "tabBar": {
+    "list": [
+      {
+        "text": "首页",
+        "iconPath": "images/icon/1.png",
+        "pagePath": "pages/index/index",
+        "selectedIconPath": "images/icon/1t.png"
+      },
+      {
+        "text": "数据",
+        "iconPath": "images/icon/2.png",
+        "pagePath": "pages/data/data",
+        "selectedIconPath": "images/icon/2t.png"
+      },
+      {
+        "text": "记录",
+        "iconPath": "images/icon/4t.png",
+        "pagePath": "pages/about/about",
+        "selectedIconPath": "images/icon/4.png"
+      }
+      
+    ]
+  },
+  "permission": {
+    "openBluetoothAdapter": true
+  }
+}

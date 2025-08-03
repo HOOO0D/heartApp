@@ -1,0 +1,3 @@
+<view class="container">
+  <ec-canvas id="mychart-dom" canvas-id="mychart" ec="{{ ec }}" style="width: 100%; height: 400px;"></ec-canvas>
+</view>

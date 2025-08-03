@@ -1,0 +1,14 @@
+<view class="container">
+  <scroll-view scroll-x="true" class="scroll-chart">
+    <ec-canvas
+      id="chart"
+      canvas-id="mychart"
+      ec="{{ec}}"
+      style="width: {{chartWidth}}px; height: 300px;">
+    </ec-canvas>
+  </scroll-view>
+
+  <view class="toolbar">
+    <button bindtap="onRefreshChart">刷新</button>
+  </view>
+</view>
