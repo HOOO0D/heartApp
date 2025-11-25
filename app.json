@@ -2,7 +2,8 @@
   "pages": [
     "pages/index/index",
     "pages/data/data",
-    "pages/about/about"
+    "pages/about/about",
+    "pages/filter/filter"
   ],
   "window": {
     "navigationBarTextStyle": "black",
@@ -32,6 +33,12 @@
         "iconPath": "images/icon/4t.png",
         "pagePath": "pages/about/about",
         "selectedIconPath": "images/icon/4.png"
+      },
+      {
+        "text": "检测",
+        "iconPath": "images/icon/3.png",
+        "pagePath": "pages/filter/filter",
+        "selectedIconPath": "images/icon/3t.png"
       }
       
     ]
