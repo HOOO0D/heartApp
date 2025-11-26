@@ -12,21 +12,24 @@ function initChart(canvas, width, height, dpr) {
   canvas.setChart(chart);
 
   const option = {
+    grid: { left: 40, right: 20, top: 20, bottom: 30, containLabel: true },
     xAxis: {
       type: 'value',
       name: 'Index',
       min: 0,
-      max: 100,
+      max: 200,
+      splitLine: { show: false },
     },
     yAxis: {
       type: 'value',
       name: 'Value',
       min: 0,
       max: 1000,
+      splitLine: { show: false },
     },
     series: [{
       type: 'line',
-      data: [[0, 0]],
+      data: [],
       showSymbol: false,
       smooth: true,
       lineStyle: { width: 2, color: '#1890ff' },
@@ -36,10 +39,9 @@ function initChart(canvas, width, height, dpr) {
 
   chart.setOption(option);
 
-  // 把 chart 实例挂到当前页面实例上（不要放在 data 里）
   const page = getCurrentPages().pop();
   if (page) {
-    page.chart = chart;
+    page.chart = chart;   // 挂到页面实例上
   }
 
   return chart;
@@ -49,147 +51,131 @@ Page({
   data: {
     ec: { onInit: initChart },
     xCounter: 0,
-    chartWidth: 375,
   },
 
-  // 仅存在于逻辑层，不进 data，避免频繁 setData 大数组
-  chartData: [],
+  // 逻辑层字段，不放 data
+  chartData: [],          // [[x,y], ...]
   _pendingRecords: [],
   _lastFlushTs: 0,
+  _chartHandler: null,
 
   onLoad() {
-    // 注册全局图表更新 handler
-    app.bleChartUpdateHandler = (record) => {
+    // 这里只做初始化，不注册 handler
+  },
+
+  // ⭐ 只在页面可见时，接 BLE 数据画图
+  onShow() {
+    this._chartHandler = (record) => {
       this.enqueueRecord(record);
     };
+    app.bleChartUpdateHandler = this._chartHandler;
   },
 
-  onReady() {
-    // 如果 chart 已经准备好了，尝试刷一遍 pending
-    if (this.chart && this._pendingRecords.length > 0) {
-      this.flushPending();
-    }
-  },
-
-  onUnload() {
-    // 页面销毁时解绑
-    if (app.bleChartUpdateHandler) {
+  // 页面隐藏（切到其他 tab）时就停掉图表更新
+  onHide() {
+    if (app.bleChartUpdateHandler === this._chartHandler) {
       app.bleChartUpdateHandler = null;
     }
   },
 
-  // 接收到一条新的 record，放入缓冲，并做简单节流
+  // 保险起见，销毁时也清一下
+  onUnload() {
+    if (app.bleChartUpdateHandler === this._chartHandler) {
+      app.bleChartUpdateHandler = null;
+    }
+  },
+
+  // 收到一条新 record：先入缓冲，做 100ms 节流
   enqueueRecord(record) {
     if (!record) return;
     this._pendingRecords.push(record);
 
-    // 如果 chart 还没准备好，先缓存在 _pendingRecords 中
+    // chart 还没 ready，就先攒着
     if (!this.chart) return;
 
     const now = Date.now();
-    const INTERVAL = 100; // 每 100ms 最多刷新一次图表
+    const INTERVAL = 100; // 100ms 刷一次图就够了
     if (now - this._lastFlushTs >= INTERVAL) {
       this._lastFlushTs = now;
       this.flushPending();
     }
   },
 
-  // 把 pending 里的记录全部画上去
+  // 批量把 pending 里的记录转成点，一次性 setOption
   flushPending() {
     if (!this.chart || this._pendingRecords.length === 0) return;
+
     const records = this._pendingRecords.slice();
     this._pendingRecords.length = 0;
 
+    let xCounter = this.data.xCounter;
+    const newPoints = [];
+
     records.forEach((record) => {
-      this.addBLEPoints(record);
+      const { val1, val2, val3, val4 } = record;
+      const values = [val1, val2, val3, val4]
+        .filter(v => typeof v === 'number' && !isNaN(v));
+      values.forEach((v) => {
+        newPoints.push([xCounter, v]);
+        xCounter += 1;
+      });
     });
-  },
 
-  // 把一条 record（包含 val1~4）转换为若干个点，更新到折线图
-  addBLEPoints(record) {
-    const { val1, val2, val3, val4 } = record;
-    const values = [val1, val2, val3, val4]
-      .filter(v => typeof v === 'number' && !isNaN(v));
+    if (!newPoints.length) {
+      this.setData({ xCounter: xCounter });
+      return;
+    }
 
-    if (values.length === 0) return;
-
-    const xCounter = this.data.xCounter;
-
-    const newPoints = values.map((val, i) => ({
-      value: [xCounter + i, val],
-    }));
-
+    // 更新本地缓存 + 滑动窗口
     this.chartData = this.chartData.concat(newPoints);
-
-    const MAX_POINTS = 200;
+    const MAX_POINTS = 200;          // 显示最近 200 个点
     if (this.chartData.length > MAX_POINTS) {
       this.chartData.splice(0, this.chartData.length - MAX_POINTS);
     }
 
-    const firstX = this.chartData[0].value[0];
-    const lastX = this.chartData[this.chartData.length - 1].value[0];
+    const firstX = this.chartData[0][0];
+    const lastX = this.chartData[this.chartData.length - 1][0];
 
+    // ⭐ 一次性 setOption
     this.chart.setOption({
       xAxis: {
         type: 'value',
         name: 'Index',
         min: firstX,
         max: lastX + 10,
+        splitLine: { show: false },
       },
       yAxis: {
         type: 'value',
         name: 'Value',
         min: 0,
         max: 1000,
+        splitLine: { show: false },
       },
       series: [{
         type: 'line',
-        data: this.chartData.map(p => p.value),
+        data: this.chartData,
         showSymbol: false,
         smooth: true,
       }],
     });
 
-    const newXCounter = xCounter + values.length;
-    this.setData({
-      xCounter: newXCounter,
-      chartWidth: newXCounter * 10,
-    });
+    this.setData({ xCounter });
   },
 
-  // 手动重置图表
+  // 手动重置
   onRefreshChart() {
     if (!this.chart) return;
 
-    const option = {
-      xAxis: {
-        type: 'value',
-        name: 'Index',
-        min: 0,
-        max: 100,
-      },
-      yAxis: {
-        type: 'value',
-        name: 'Value',
-        min: 0,
-        max: 1000,
-      },
-      series: [{
-        type: 'line',
-        data: [[0, 0]],
-        showSymbol: false,
-        smooth: true,
-        lineStyle: { width: 2, color: '#1890ff' },
-        areaStyle: { color: 'rgba(24, 144, 255, 0.1)' },
-      }],
-    };
-
-    this.chart.setOption(option, true);
     this.chartData = [];
+    this._pendingRecords = [];
+    this._lastFlushTs = 0;
 
-    this.setData({
-      xCounter: 0,
-      chartWidth: 375,
-    });
+    this.setData({ xCounter: 0 });
+
+    this.chart.setOption({
+      xAxis: { min: 0, max: 200 },
+      series: [{ data: [] }],
+    }, true);
   },
 });

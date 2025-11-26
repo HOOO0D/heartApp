@@ -1,6 +1,7 @@
 // pages/index/index.js
 const app = getApp();
 
+// 工具：在数组里按 key 找下标
 function inArray(arr, key, val) {
   for (let i = 0; i < arr.length; i++) {
     if (arr[i][key] === val) return i;
@@ -8,7 +9,7 @@ function inArray(arr, key, val) {
   return -1;
 }
 
-// ArrayBuffer -> hex
+// ArrayBuffer -> hex 字符串
 function ab2hex(buffer) {
   return Array.prototype.map.call(
     new Uint8Array(buffer),
@@ -30,7 +31,7 @@ function parseBLEData(hexStr) {
   return values;
 }
 
-// 发给 Flask
+// 发送到 Flask
 function sendDataToFlask({ val1, val2, val3, val4 }) {
   wx.request({
     url: 'http://192.168.144.216:5000/upload_data',
@@ -38,10 +39,11 @@ function sendDataToFlask({ val1, val2, val3, val4 }) {
     header: { 'content-type': 'application/json' },
     data: { val1, val2, val3, val4 },
     success(res) { console.log('Flask 返回:', res.data); },
-    fail(err) { console.error('发送失败:', err); }
+    fail(err) { console.error('发送失败:', err); },
   });
 }
 
+// 设备服务 UUID（按你的设备来）
 const SERVICE_UUID = '8653000A-43E6-47B7-9CB0-5FC21D4AE340';
 
 Page({
@@ -53,20 +55,38 @@ Page({
     VALUE2: 0,
     VALUE3: 0,
     VALUE4: 0,
-    canWrite: false
+    canWrite: false,
   },
 
   onLoad() {
+    if (!app.globalData) app.globalData = {};
     if (!app.globalData.bleValues) app.globalData.bleValues = [];
 
-
-    wx.onBLECharacteristicValueChange((characteristic) => {
-      this.handleBleNotification(characteristic);
-    });
-
     this._discoveryStarted = false;
+
+    // ⭐ 全局只注册一次 BLE 通知监听
+    if (!this._bleListenerRegistered) {
+      wx.onBLECharacteristicValueChange((characteristic) => {
+        this.handleBleNotification(characteristic);
+      });
+      this._bleListenerRegistered = true;
+    }
   },
 
+  // （如果这个页面不是 tabBar 页面，可以在 onUnload 里取消监听；
+  //  如果是 tabBar 页面，一般不会卸载，可以不用 off）
+  onUnload() {
+    if (this._bleListenerRegistered) {
+      try {
+        wx.offBLECharacteristicValueChange && wx.offBLECharacteristicValueChange();
+      } catch (e) {
+        console.warn('offBLECharacteristicValueChange 不支持或出错:', e);
+      }
+      this._bleListenerRegistered = false;
+    }
+  },
+
+  // ⭐ 收到 BLE 通知的统一处理函数
   handleBleNotification(characteristic) {
     const hexVal = ab2hex(characteristic.value);
 
@@ -76,12 +96,12 @@ Page({
     if (idx === -1) {
       chsData[`chs[${this.data.chs.length}]`] = {
         uuid: characteristic.characteristicId,
-        value: hexVal
+        value: hexVal,
       };
     } else {
       chsData[`chs[${idx}]`] = {
         uuid: characteristic.characteristicId,
-        value: hexVal
+        value: hexVal,
       };
     }
 
@@ -94,18 +114,18 @@ Page({
     const [val1, val2, val3, val4] = values;
     const time = new Date().toLocaleTimeString();
 
-    // 更新全局缓存
+    // 更新全局缓存（滑动窗口）
     const buf = app.globalData.bleValues;
-    const MAX_LEN = 100;
+    const MAX_LEN = 1000;
     buf.push({ time, val1, val2, val3, val4 });
     if (buf.length > MAX_LEN) buf.splice(0, buf.length - MAX_LEN);
 
-    // 更新 index 页当前显示值
+    // 更新 index 页当前显示值 + chs
     this.setData(Object.assign({}, chsData, {
       VALUE1: val1,
       VALUE2: val2,
       VALUE3: val3,
-      VALUE4: val4
+      VALUE4: val4,
     }));
 
     const record = { time, val1, val2, val3, val4 };
@@ -124,11 +144,13 @@ Page({
     sendDataToFlask({ val1, val2, val3, val4 });
   },
 
-  /* 下面是你原来的蓝牙初始化 / 扫描 / 连接逻辑，保持就好，只改关键点 */
+  /* ================= 蓝牙适配器 / 扫描 / 连接 ================= */
 
   openBluetoothAdapter() {
     wx.openBluetoothAdapter({
-      success: () => { this.startBluetoothDevicesDiscovery(); },
+      success: () => {
+        this.startBluetoothDevicesDiscovery();
+      },
       fail: (res) => {
         if (res.errCode === 10001) {
           wx.onBluetoothAdapterStateChange((state) => {
@@ -137,7 +159,7 @@ Page({
         } else {
           wx.showToast({ title: '蓝牙初始化失败', icon: 'none' });
         }
-      }
+      },
     });
   },
 
@@ -147,17 +169,21 @@ Page({
 
     wx.startBluetoothDevicesDiscovery({
       allowDuplicatesKey: true,
-      success: () => { this.onBluetoothDeviceFound(); },
+      success: () => {
+        this.onBluetoothDeviceFound();
+      },
       fail: (err) => {
         console.error('startDiscovery fail', err);
         wx.showToast({ title: '搜索设备失败', icon: 'none' });
-      }
+      },
     });
   },
 
   stopBluetoothDevicesDiscovery() {
     wx.stopBluetoothDevicesDiscovery({
-      complete: () => { this._discoveryStarted = false; }
+      complete: () => {
+        this._discoveryStarted = false;
+      },
     });
   },
 
@@ -190,7 +216,7 @@ Page({
       fail: (err) => {
         console.error('createBLEConnection fail', err);
         wx.showToast({ title: '连接失败', icon: 'none' });
-      }
+      },
     });
     this.stopBluetoothDevicesDiscovery();
   },
@@ -201,7 +227,10 @@ Page({
       deviceId: this.data.deviceId,
       complete: () => {
         this.setData({ connected: false, chs: [], canWrite: false });
-      }
+        this._deviceId = null;
+        this._serviceId = null;
+        this._characteristicId = null;
+      },
     });
   },
 
@@ -216,7 +245,10 @@ Page({
           }
         }
         wx.showToast({ title: '未找到指定服务', icon: 'none' });
-      }
+      },
+      fail: (err) => {
+        console.error('getBLEDeviceServices fail', err);
+      },
     });
   },
 
@@ -230,13 +262,13 @@ Page({
             wx.readBLECharacteristicValue({
               deviceId,
               serviceId,
-              characteristicId: item.uuid
+              characteristicId: item.uuid,
             });
           }
           if (item.properties.write) {
             this.setData({ canWrite: true });
             this._deviceId = deviceId;
-            this._serviceId = deviceId;  
+            this._serviceId = deviceId;   // ✅ 修正：不能写成 deviceId
             this._characteristicId = item.uuid;
             this.writeBLECharacteristicValue();
           }
@@ -249,9 +281,12 @@ Page({
             });
           }
         });
-      }
+      },
+      fail: (err) => {
+        console.error('getBLEDeviceCharacteristics fail', err);
+      },
     });
-    // ⚠️ 这里不再注册 onBLECharacteristicValueChange
+    // ⚠️ 不要在这里再注册 onBLECharacteristicValueChange
   },
 
   writeBLECharacteristicValue() {
@@ -263,12 +298,20 @@ Page({
       serviceId: this._serviceId,
       characteristicId: this._characteristicId,
       value: buffer,
+      success: (res) => {
+        console.log('writeBLECharacteristicValue success', res);
+      },
+      fail: (err) => {
+        console.error('writeBLECharacteristicValue fail', err);
+      },
     });
   },
 
   closeBluetoothAdapter() {
     wx.closeBluetoothAdapter({
-      complete: () => { this._discoveryStarted = false; }
+      complete: () => {
+        this._discoveryStarted = false;
+      },
     });
   },
 });
