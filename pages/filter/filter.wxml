@@ -1,3 +1,58 @@
-<view class="container">
-  <ec-canvas id="mychart-dom" canvas-id="mychart" ec="{{ ec }}" style="width: 100%; height: 400px;"></ec-canvas>
+<!-- pages/detect/detect.wxml -->
+<view class="page">
+
+<view class="card">
+  <text class="title">60 秒心电采集与分析</text>
+  <text class="subtitle">
+    点击下方按钮后，后端会在接下来的 60 秒内收集心电数据（约 21600 条），
+    并调用 MATLAB 进行分析。
+  </text>
+</view>
+
+<view class="card">
+  <button
+    class="btn"
+    type="primary"
+    bindtap="startCapture"
+    disabled="{{isCapturing}}"
+  >
+    {{ isCapturing ? '正在采集 / 分析中...' : '开始采集 60 秒' }}
+  </button>
+
+  <view class="status">
+    <text>{{statusText}}</text>
+  </view>
+
+  <view class="progress-wrapper">
+    <progress
+      percent="{{progress}}"
+      show-info="true"
+      stroke-width="6"
+    ></progress>
+  </view>
+</view>
+
+<view class="card" wx:if="{{result}}">
+  <text class="result-title">分析结果</text>
+
+  <!-- 如果结果里有我们预期的字段，就结构化展示 -->
+  <view wx:if="{{result.channel_means}}">
+    <text class="result-line">样本数：{{result.sample_count}}</text>
+    <text class="result-line">
+      通道均值：
+      val1={{result.channel_means.val1_mean}},
+      val2={{result.channel_means.val2_mean}},
+      val3={{result.channel_means.val3_mean}},
+      val4={{result.channel_means.val4_mean}}
+    </text>
+  </view>
+
+  <!-- 同时给一份 JSON 文本，方便调试 -->
+  <view class="result-json">
+    <text selectable="true">
+{{resultText}}
+    </text>
+  </view>
+</view>
+
 </view>

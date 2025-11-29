@@ -34,7 +34,7 @@ function parseBLEData(hexStr) {
 // 发送到 Flask
 function sendDataToFlask({ val1, val2, val3, val4 }) {
   wx.request({
-    url: 'http://192.168.144.216:5000/upload_data',
+    url: 'http://10.100.28.106:5000/upload_data',   // 你的 Flask 地址
     method: 'POST',
     header: { 'content-type': 'application/json' },
     data: { val1, val2, val3, val4 },
@@ -61,6 +61,10 @@ Page({
   onLoad() {
     if (!app.globalData) app.globalData = {};
     if (!app.globalData.bleValues) app.globalData.bleValues = [];
+    // ⭐ 新增：控制是否向 Flask 上传
+    if (typeof app.globalData.sendToFlask !== 'boolean') {
+      app.globalData.sendToFlask = false;
+    }
 
     this._discoveryStarted = false;
 
@@ -73,8 +77,6 @@ Page({
     }
   },
 
-  // （如果这个页面不是 tabBar 页面，可以在 onUnload 里取消监听；
-  //  如果是 tabBar 页面，一般不会卸载，可以不用 off）
   onUnload() {
     if (this._bleListenerRegistered) {
       try {
@@ -140,8 +142,10 @@ Page({
       app.bleRecordHandler(record);
     }
 
-    // 发给 Flask
-    sendDataToFlask({ val1, val2, val3, val4 });
+    // ⭐ 只有 detect 页开启采集时，才往 Flask 丢数据
+    if (app.globalData.sendToFlask) {
+      sendDataToFlask({ val1, val2, val3, val4 });
+    }
   },
 
   /* ================= 蓝牙适配器 / 扫描 / 连接 ================= */
@@ -268,7 +272,7 @@ Page({
           if (item.properties.write) {
             this.setData({ canWrite: true });
             this._deviceId = deviceId;
-            this._serviceId = deviceId;   // ✅ 修正：不能写成 deviceId
+            this._serviceId = deviceId;   
             this._characteristicId = item.uuid;
             this.writeBLECharacteristicValue();
           }

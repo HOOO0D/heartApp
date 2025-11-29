@@ -1,5 +1,4 @@
 {
-  "usingComponents": {
-    "ec-canvas": "/ec-canvas/ec-canvas"
-  }
+  "navigationBarTitleText": "60 秒心电分析",
+  "usingComponents": {}
 }

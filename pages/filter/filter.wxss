@@ -1,57 +1,65 @@
-/**index.wxss**/
-.scrollarea {
-  flex: 1;
-  overflow-y: hidden;
-}
-
-.userinfo {
+/* pages/detect/detect.wxss */
+.page {
+  padding: 32rpx;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  color: #aaa;
-  width: 80%;
-}
-
-.userinfo-avatar {
-  overflow: hidden;
-  width: 128rpx;
-  height: 128rpx;
-  margin: 20rpx;
-  border-radius: 50%;
-}
-
-.usermotto {
-  margin-top: 200px;
-}
-
-.avatar-wrapper {
-  padding: 0;
-  width: 56px !important;
-  border-radius: 8px;
-  margin-top: 40px;
-  margin-bottom: 40px;
-}
-
-.avatar {
-  display: block;
-  width: 56px;
-  height: 56px;
-}
-
-.nickname-wrapper {
-  display: flex;
-  width: 100%;
-  padding: 16px;
+  gap: 24rpx;
+  background-color: #f5f5f5;
+  min-height: 100vh;
   box-sizing: border-box;
-  border-top: .5px solid rgba(0, 0, 0, 0.1);
-  border-bottom: .5px solid rgba(0, 0, 0, 0.1);
-  color: black;
 }
 
-.nickname-label {
-  width: 105px;
+.card {
+  background-color: #ffffff;
+  border-radius: 16rpx;
+  padding: 24rpx 28rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
 }
 
-.nickname-input {
-  flex: 1;
+.title {
+  font-size: 34rpx;
+  font-weight: 600;
+  margin-bottom: 12rpx;
+}
+
+.subtitle {
+  font-size: 26rpx;
+  color: #666666;
+  line-height: 1.6;
+}
+
+.btn {
+  margin-top: 8rpx;
+  margin-bottom: 16rpx;
+}
+
+.status {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  color: #333333;
+}
+
+.progress-wrapper {
+  margin-top: 16rpx;
+}
+
+.result-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  margin-bottom: 12rpx;
+}
+.result-line {
+  font-size: 26rpx;
+  color: #333333;
+  margin-bottom: 8rpx;
+}
+.result-json {
+  margin-top: 12rpx;
+  padding: 16rpx;
+  background-color: #f7f7f7;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+  color: #444444;
+  font-family: Menlo, Consolas, monospace;
+  white-space: pre-wrap;
 }
