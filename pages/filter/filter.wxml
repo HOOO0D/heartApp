@@ -1,14 +1,16 @@
 <!-- pages/detect/detect.wxml -->
 <view class="page">
 
+<!-- 顶部说明卡片 -->
 <view class="card">
   <text class="title">60 秒心电采集与分析</text>
   <text class="subtitle">
     点击下方按钮后，后端会在接下来的 60 秒内收集心电数据（约 21600 条），
-    并调用 MATLAB 进行分析。
+    并调用 MATLAB 进行滤波、R 峰检测和随机森林分类。
   </text>
 </view>
 
+<!-- 控制 + 状态 -->
 <view class="card">
   <button
     class="btn"
@@ -32,22 +34,30 @@
   </view>
 </view>
 
-<view class="card" wx:if="{{result}}">
-  <text class="result-title">分析结果</text>
+<!-- 统计结果卡片：总拍数 / 异常比例等 -->
+<view class="card" wx:if="{{totalBeats || abnormalBeats || normalBeats}}">
+  <text class="result-title">统计结果</text>
+  <text class="result-line">总心拍数：{{totalBeats}}</text>
+  <text class="result-line">正常心拍数：{{normalBeats}}</text>
+  <text class="result-line">异常心拍数：{{abnormalBeats}}</text>
+  <text class="result-line" wx:if="{{abnormalRatioText}}">
+    异常比例：{{abnormalRatioText}}
+  </text>
+</view>
 
-  <!-- 如果结果里有我们预期的字段，就结构化展示 -->
-  <view wx:if="{{result.channel_means}}">
-    <text class="result-line">样本数：{{result.sample_count}}</text>
-    <text class="result-line">
-      通道均值：
-      val1={{result.channel_means.val1_mean}},
-      val2={{result.channel_means.val2_mean}},
-      val3={{result.channel_means.val3_mean}},
-      val4={{result.channel_means.val4_mean}}
-    </text>
-  </view>
+<!-- R 峰示意图 -->
+<view class="card" wx:if="{{rpeaksImage}}">
+  <text class="result-title">R 峰检测示意图</text>
+  <image
+    class="rpeaks-img"
+    mode="widthFix"
+    src="{{rpeaksImage}}"
+  ></image>
+</view>
 
-  <!-- 同时给一份 JSON 文本，方便调试 -->
+<!-- 原始 JSON（调试用，可选） -->
+<view class="card" wx:if="{{resultText}}">
+  <text class="result-title">原始返回 JSON（调试用）</text>
   <view class="result-json">
     <text selectable="true">
 {{resultText}}
