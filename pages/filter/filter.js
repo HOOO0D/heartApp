@@ -1,7 +1,7 @@
 // pages/detect/detect.js
 const app = getApp();
 
-const BASE_URL = 'http://10.100.28.106:5000';
+const BASE_URL = 'http://10.78.173.85:5000';
 
 Page({
   data: {

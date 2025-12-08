@@ -34,7 +34,7 @@ function parseBLEData(hexStr) {
 // 发送到 Flask
 function sendDataToFlask({ val1, val2, val3, val4 }) {
   wx.request({
-    url: 'http://10.100.28.106:5000/upload_data',   // 你的 Flask 地址
+    url: 'http://10.78.173.85:5000/upload_data',   // 你的 Flask 地址
     method: 'POST',
     header: { 'content-type': 'application/json' },
     data: { val1, val2, val3, val4 },
