@@ -1,7 +1,7 @@
 // pages/detect/detect.js
 const app = getApp();
 
-const BASE_URL = 'http://10.78.173.85:5000';
+const BASE_URL = 'http://10.218.241.216:5000';
 
 Page({
   data: {
@@ -183,6 +183,16 @@ Page({
             abnormalRatioText = (result.abnormal_ratio * 100).toFixed(1) + '%';
           }
 
+          // 异常比例大于 25% 时，弹出提示框
+          if (result.abnormal_ratio > 0.25) {
+            wx.showModal({
+              title: '警告',
+              content: '心跳异常比例超过 25%，请注意！',
+              showCancel: false,
+              confirmText: '知道了',
+            });
+          }
+
           // 解析 R 峰示意图
           let imgUrl = '';
           if (result.rpeaks_image_base64) {
@@ -190,7 +200,7 @@ Page({
           }
 
           this.setData({
-            isCapturing: false,
+            isCapturing: false,  // 确保采集完成后更新为 false
             statusText: '分析完成',
             progress: 100,
             result,
@@ -237,8 +247,6 @@ Page({
           title: '轮询失败',
           icon: 'none',
         });
-        // 这里先不立即 stopPolling，防止临时网络问题；
-        // 如果需要，可以加一个失败计数，多次失败后自动 stopPolling + sendToFlask=false
       },
     });
   },

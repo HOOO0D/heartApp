@@ -34,7 +34,7 @@ function parseBLEData(hexStr) {
 // 发送到 Flask
 function sendDataToFlask({ val1, val2, val3, val4 }) {
   wx.request({
-    url: 'http://10.78.173.85:5000/upload_data',   // 你的 Flask 地址
+    url: 'http://10.218.241.216:5000/upload_data',   // 你的 Flask 地址
     method: 'POST',
     header: { 'content-type': 'application/json' },
     data: { val1, val2, val3, val4 },
@@ -290,7 +290,7 @@ Page({
         console.error('getBLEDeviceCharacteristics fail', err);
       },
     });
-    // ⚠️ 不要在这里再注册 onBLECharacteristicValueChange
+
   },
 
   writeBLECharacteristicValue() {

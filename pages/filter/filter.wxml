@@ -60,7 +60,7 @@
   <text class="result-title">原始返回 JSON（调试用）</text>
   <view class="result-json">
     <text selectable="true">
-{{resultText}}
+      {{resultText}}
     </text>
   </view>
 </view>
