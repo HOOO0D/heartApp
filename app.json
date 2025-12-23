@@ -2,8 +2,8 @@
   "pages": [
     "pages/index/index",
     "pages/data/data",
-    "pages/about/about",
-    "pages/filter/filter"
+    "pages/records/records",
+    "pages/detect/detect"
   ],
   "window": {
     "navigationBarTextStyle": "black",
@@ -31,13 +31,13 @@
       {
         "text": "记录",
         "iconPath": "images/icon/4t.png",
-        "pagePath": "pages/about/about",
+        "pagePath": "pages/records/records",
         "selectedIconPath": "images/icon/4.png"
       },
       {
         "text": "检测",
         "iconPath": "images/icon/3.png",
-        "pagePath": "pages/filter/filter",
+        "pagePath": "pages/detect/detect",
         "selectedIconPath": "images/icon/3t.png"
       }
       
