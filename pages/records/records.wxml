@@ -1,0 +1,32 @@
+<view class="container">
+  <view class="toolbar">
+    <button class="clear-btn" bindtap="clearRecords">清空数据</button>
+  </view>
+
+  <scroll-view scroll-y="true" class="data-list">
+    <view wx:for="{{records}}" wx:key="index" class="data-item">
+
+      <view class="row" bindtap="toggleExpand" data-index="{{index}}">
+        <view class="left">
+          <text class="timestamp">{{item.timeStr}}</text>
+          <text class="meta">点数: {{item.samplesLen}} / 最新: {{item.last}}</text>
+        </view>
+        <text class="arrow">{{item.expanded ? '收起' : '展开'}}</text>
+      </view>
+
+      <view class="values">
+        <text class="preview">samples: {{item.preview}}</text>
+      </view>
+
+      <view class="detail" wx:if="{{item.expanded}}">
+        <view class="sample-grid">
+          <view wx:for="{{item.samples}}" wx:key="sidx" class="sample-cell">
+            <text class="sidx">{{index}}</text>
+            <text class="sval">{{item}}</text>
+          </view>
+        </view>
+      </view>
+
+    </view>
+  </scroll-view>
+</view>

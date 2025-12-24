@@ -17,7 +17,7 @@ function ab2hex(buffer) {
   ).join('');
 }
 
-// 解析 BLE 数据：每 2 字节一组，小端转大端
+// 解析 BLE 数据：每 2 字节一组，小端转大端 + 转 int16
 function parseBLEData(hexStr) {
   const values = [];
   const groupSize = 4;
@@ -25,7 +25,8 @@ function parseBLEData(hexStr) {
 
   for (let i = 0; i < totalGroups; i++) {
     const group = hexStr.slice(i * groupSize, (i + 1) * groupSize);
-    const val = parseInt(group.slice(2, 4) + group.slice(0, 2), 16);
+    let val = parseInt(group.slice(2, 4) + group.slice(0, 2), 16);
+    if (val >= 0x8000) val -= 0x10000;  // ✅ 转成 int16
     values.push(val);
   }
   return values;
@@ -59,15 +60,16 @@ Page({
     this._discoveryStarted = false;
 
     // ====== 上传管道状态（核心）======
-    this._uploadBuf = [];       // 待上传缓存（record 列表）
-    this._flushTimer = null;    // flush 定时器
-    this._uploading = false;    // 是否有在途请求
-    this._reqTask = null;       // 当前 RequestTask（可 abort）
+    // ✅ 现在 _uploadBuf 存的是 {ts, samples:[...]}（每条=一次notify）
+    this._uploadBuf = [];
+    this._flushTimer = null;
+    this._uploading = false;
+    this._reqTask = null;
 
     // 你可以按网络情况调这些参数
     this._UPLOAD_INTERVAL_MS = 200; // 200ms flush 一次 -> 5次/秒
-    this._BATCH_SIZE = 50;          // 每次最多 50 条 record
-    this._MAX_BUF = 4000;           // 最大缓存，防止网络差时无限堆积
+    this._BATCH_SIZE = 25;          // ✅ 每次最多 25 包（每包16点），更贴近真实速率
+    this._MAX_BUF = 2000;           // ✅ 最大缓存（包数），防止网络差时无限堆积
 
     // ⭐ 全局只注册一次 BLE 通知监听
     if (!this._bleListenerRegistered) {
@@ -76,15 +78,15 @@ Page({
       });
       this._bleListenerRegistered = true;
     }
+
     // UI 节流：200ms 更新一次显示
-  this._uiLastTs = 0;
-  this._UI_THROTTLE_MS = 200;
+    this._uiLastTs = 0;
+    this._UI_THROTTLE_MS = 200;
 
-  // 速率统计：每秒打印一次（用于判断是不是 BLE 限制）
-  this._statTs = Date.now();
-  this._statPackets = 0;   // record 数（每个 record = 4点）
-  this._statPoints = 0;    // 点数（= record*4）
-
+    // 速率统计：每秒打印一次（用于判断是不是 BLE 限制）
+    this._statTs = Date.now();
+    this._statPackets = 0; // ✅ 现在是 notify 包数
+    this._statPoints = 0;  // ✅ 点数（sum(samples.length)）
   },
 
   onHide() {
@@ -108,86 +110,64 @@ Page({
   },
 
   // ================== BLE 通知处理 ==================
-
   handleBleNotification(characteristic) {
     const hexVal = ab2hex(characteristic.value);
-  
-    // 解析所有 16bit 值
+
+    // 单通道：每 2 字节一个采样点（一个包 16 点 -> values.length=16）
     const values = parseBLEData(hexVal);
-    if (!values || values.length < 4) return;
-  
-    // ✅ 按 4 个一组拆分（防止一个 notify 里有多组数据你只取前4个）
+    if (!values || values.length < 1) return;
+
     const now = Date.now();
-    const groups = Math.floor(values.length / 4);
-  
-    for (let g = 0; g < groups; g++) {
-      const base = g * 4;
-      const val1 = values[base + 0];
-      const val2 = values[base + 1];
-      const val3 = values[base + 2];
-      const val4 = values[base + 3];
-  
-      const record = { ts: now, val1, val2, val3, val4 };
-  
-      // 全局缓存（滑动窗口）— 注意：这里缓存的是 record，不要太大
-      const buf = app.globalData.bleValues;
-      const MAX_LEN = 1000;
-      buf.push(record);
-      if (buf.length > MAX_LEN) buf.splice(0, buf.length - MAX_LEN);
-  
-      // 分发给图表页/记录页（这俩如果很重，也建议你在那边做节流）
-      if (typeof app.bleChartUpdateHandler === 'function') app.bleChartUpdateHandler(record);
-      if (typeof app.bleRecordHandler === 'function') app.bleRecordHandler(record);
-  
-      // ✅ 上传：只在 detect 页开启采集时进行
-      if (app.globalData.sendToFlask) {
-        if (app.globalData.captureId) this.enqueueUpload(record);
-      } else {
-        this.stopUploadPipeline();
-      }
-  
-      // ====== 速率统计（每秒打印）======
-      this._statPackets += 1;   // 一个 record = 4点
-      this._statPoints += 4;
-    }
-  
-    // ====== 每秒输出一次统计：判断到底是多少包/秒 ======
+
+    // ====== 速率统计：按“包/秒”和“点/秒”统计 ======
+    this._statPackets += 1;             // 1 次 notify = 1 包
+    this._statPoints += values.length;  // 包内采样点数（理想 16 或 8）
+
     const dt = now - this._statTs;
     if (dt >= 1000) {
-      const pps = (this._statPackets * 1000 / dt).toFixed(1); // records/s
+      const pps = (this._statPackets * 1000 / dt).toFixed(1); // packets/s
       const sps = (this._statPoints * 1000 / dt).toFixed(1);  // samples/s
-      console.log(`[BLE rate] records/s=${pps}, samples/s=${sps}, valuesLen=${values.length}`);
-  
+      console.log(`[BLE rate] packets/s=${pps}, samples/s=${sps}, valuesLen=${values.length}`);
       this._statTs = now;
       this._statPackets = 0;
       this._statPoints = 0;
     }
-  
-    // ====== UI 更新节流：200ms 才 setData 一次 ======
+
+    // ====== UI 显示节流：只显示最新一个采样点 ======
     if (now - this._uiLastTs >= this._UI_THROTTLE_MS) {
       this._uiLastTs = now;
-  
-      // 只显示最新一组（最后一组）
-      const lastBase = (groups - 1) * 4;
-      const d1 = values[lastBase + 0];
-      const d2 = values[lastBase + 1];
-      const d3 = values[lastBase + 2];
-      const d4 = values[lastBase + 3];
-  
+      const last = values[values.length - 1];
       this.setData({
-        VALUE1: d1,
-        VALUE2: d2,
-        VALUE3: d3,
-        VALUE4: d4
-        // chsData 这种调试字段建议别再每次更新，否则很卡
+        VALUE1: last,
+        VALUE2: 0,
+        VALUE3: 0,
+        VALUE4: 0
       });
+    }
+
+    // ====== 给图表页/记录页发 “samples 数组” ======
+    const packet = { ts: now, samples: values };
+
+    const buf = app.globalData.bleValues;
+    const MAX_LEN = 300;
+    buf.push(packet);
+    if (buf.length > MAX_LEN) buf.splice(0, buf.length - MAX_LEN);
+
+    if (typeof app.bleChartUpdateHandler === 'function') app.bleChartUpdateHandler(packet);
+    if (typeof app.bleRecordHandler === 'function') app.bleRecordHandler(packet);
+
+    // ✅ ✅ ✅ 真·16点/包上传：不再拆 val1..val4
+    if (app.globalData.sendToFlask) {
+      if (!app.globalData.captureId) return;
+      this.enqueueUpload(packet); // packet={ts, samples:[...]}
+    } else {
+      this.stopUploadPipeline();
     }
   },
 
   // ================== 上传管道（核心） ==================
-
-  enqueueUpload(record) {
-    this._uploadBuf.push(record);
+  enqueueUpload(packet) {
+    this._uploadBuf.push(packet);
 
     // 缓冲上限：网络差时丢弃最旧数据，避免越积越多发不完
     if (this._uploadBuf.length > this._MAX_BUF) {
@@ -203,33 +183,28 @@ Page({
   },
 
   flushUpload() {
-    // 开关关了：直接停
     if (!app.globalData.sendToFlask) {
       this.stopUploadPipeline();
       return;
     }
 
-    // 没有会话ID：也停（不应该出现，稳妥起见）
     const cid = app.globalData.captureId;
     if (!cid) {
       this.stopUploadPipeline();
       return;
     }
 
-    // 单并发：已有请求在途，不再发新的
     if (this._uploading) return;
-
-    // 没数据不发
     if (!this._uploadBuf.length) return;
 
-    // 取一批
+    // 取一批（每条是一个 notify 包）
     const batch = this._uploadBuf.splice(0, this._BATCH_SIZE);
 
-    // 组装后端 batch 数据：后端只需要 val1..val4
+    // ✅ payload 改成 samples 格式（后端已支持）
     const payload = {
       capture_id: cid,
       batch: batch.map(x => ({
-        val1: x.val1, val2: x.val2, val3: x.val3, val4: x.val4
+        samples: Array.isArray(x.samples) ? x.samples : []
       }))
     };
 
@@ -242,51 +217,36 @@ Page({
       data: payload,
 
       success: (res) => {
-        // 后端在 not_collecting / capture_id mismatch 时会返回 409
         if (res.statusCode === 409) {
-          // 说明采集已经结束或会话不一致：立即止血
           this.stopUploadPipeline();
           return;
         }
 
-        // 非 200 也当失败处理
         if (res.statusCode !== 200) {
           console.warn('upload statusCode:', res.statusCode, res.data);
-          // 简单策略：失败批次丢弃（防止死循环重试）
-          // 你也可以选择重试：但要做次数限制，否则网络差会卡死
           return;
         }
-
-        // 200 正常：不需要每次都打印，避免刷屏
-        // console.log('upload ok:', res.data);
       },
 
       fail: (err) => {
         console.error('upload fail:', err);
-        // 失败策略：丢弃该批次（避免无限重试阻塞后续）
-        // 如果你想重试，可以把 batch 放回队头，但必须限制重试次数
       },
 
       complete: () => {
         this._uploading = false;
         this._reqTask = null;
-
-        // 如果开关仍开着且队列还有数据，下一次 timer tick 会继续发
       }
     });
   },
 
   stopUploadPipeline() {
-    // 停止定时器
     if (this._flushTimer) {
       clearInterval(this._flushTimer);
       this._flushTimer = null;
     }
 
-    // 清空待上传缓存
     this._uploadBuf = [];
 
-    // abort 在途请求（止血）
     if (this._reqTask && typeof this._reqTask.abort === 'function') {
       try { this._reqTask.abort(); } catch (e) {}
     }
@@ -296,7 +256,6 @@ Page({
   },
 
   /* ================= 蓝牙适配器 / 扫描 / 连接 ================= */
-
   openBluetoothAdapter() {
     wx.openBluetoothAdapter({
       success: () => {
@@ -425,7 +384,7 @@ Page({
           if (item.properties.write) {
             this.setData({ canWrite: true });
             this._deviceId = deviceId;
-            this._serviceId = deviceId;      
+            this._serviceId = deviceId;     // ✅ 修复：这里必须是 serviceId
             this._characteristicId = item.uuid;
             this.writeBLECharacteristicValue();
           }

@@ -1,0 +1,76 @@
+/* pages/detect/detect.wxss */
+.page {
+  padding: 16rpx;
+  background-color: #f5f5f5;
+}
+
+.card {
+  background-color: #ffffff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.title {
+  font-size: 32rpx;
+  font-weight: 600;
+  margin-bottom: 12rpx;
+}
+
+.subtitle {
+  font-size: 26rpx;
+  color: #666666;
+  line-height: 1.6;
+}
+
+.btn {
+  margin-top: 8rpx;
+}
+
+.status {
+  margin-top: 16rpx;
+  font-size: 26rpx;
+  color: #333333;
+}
+
+.progress-wrapper {
+  margin-top: 16rpx;
+}
+
+.result-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  margin-bottom: 12rpx;
+}
+
+.result-line {
+  display: block;
+  font-size: 26rpx;
+  color: #333333;
+  margin-top: 6rpx;
+}
+
+.rpeaks-img {
+  width: 100%;
+  margin-top: 16rpx;
+  border-radius: 12rpx;
+}
+
+.result-json {
+  margin-top: 16rpx;
+  padding: 16rpx;
+  background-color: #f9f9f9;
+  border-radius: 12rpx;
+  font-size: 22rpx;
+  color: #444444;
+  word-break: break-all;
+}
+.rpeaks-img {
+  width: 100%;
+  border-radius: 12rpx;
+}
+
+.rpeaks-img:active {
+  opacity: 0.85;
+}
